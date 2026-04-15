@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SDN Load Balancer – Advanced Control Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#070b16;--card:#0f1622;--card2:#141d2e;--card3:#192030;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.10);
+  --text:#e2e8f0;--muted:#64748b;--dim:#334155;
+  --purple:#7c6fff;--cyan:#06b6d4;--green:#10b981;--amber:#f59e0b;--red:#ef4444;
+  --purple-s:#a78bfa;--green-s:#34d399;--amber-s:#fbbf24;--red-s:#f87171;
+  --font:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;
+  --r-sm:6px;--r-md:10px;--r-lg:14px;--r-xl:18px;
+}
+html{font-size:14px}
+body{
+  background:var(--bg);color:var(--text);font-family:var(--font);
+  min-height:100vh;padding:18px 16px 36px;
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 55% 50% at 10% 15%,rgba(124,111,255,.07) 0%,transparent 70%),
+    radial-gradient(ellipse 45% 55% at 90% 85%,rgba(6,182,212,.05) 0%,transparent 65%),
+    radial-gradient(ellipse 35% 35% at 50% 50%,rgba(16,185,129,.03) 0%,transparent 60%);
+}
+
+/* ── Utilities ─────────────────────────────────────── */
+.z1{position:relative;z-index:1}
+.mono{font-family:var(--mono)}
+.fw{width:100%;max-width:1160px}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.col{display:flex;flex-direction:column;gap:6px}
+.grow{flex:1}
+.min0{min-width:0}
+
+/* ── Header ─────────────────────────────────────────── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 2px}
+.logo{display:flex;align-items:center;gap:11px}
+.logo-icon{width:34px;height:34px;filter:drop-shadow(0 0 10px rgba(124,111,255,.6));animation:logoPulse 4s ease-in-out infinite}
+@keyframes logoPulse{0%,100%{filter:drop-shadow(0 0 8px rgba(124,111,255,.6))}50%{filter:drop-shadow(0 0 18px rgba(6,182,212,.8))}}
+.logo-title{font-size:.98rem;font-weight:700;letter-spacing:-.01em}
+.logo-sub{font-size:.63rem;color:var(--muted);letter-spacing:.06em;margin-top:1px}
+.hdr-right{display:flex;gap:8px;align-items:center}
+.chip{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;font-size:.72rem;font-weight:600}
+.chip-demo{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#fbbf24}
+.chip-algo{background:rgba(124,111,255,.1);border:1px solid rgba(124,111,255,.3);color:#a78bfa;font-family:var(--mono)}
+.pulse{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulseDot 1.5s ease-in-out infinite}
+@keyframes pulseDot{0%,100%{box-shadow:0 0 0 0 currentColor;opacity:1}50%{box-shadow:0 0 0 5px transparent;opacity:.4}}
+
+/* ── Viz Card ────────────────────────────────────────── */
+.viz-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-xl);
+  overflow:hidden;box-shadow:0 4px 40px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.04);
+  position:relative;
+}
+.viz-menu{position:absolute;top:10px;right:12px;z-index:5;color:var(--muted);font-size:1rem;letter-spacing:3px;opacity:.4;user-select:none}
+.util-scale{
+  position:absolute;bottom:10px;left:14px;z-index:5;
+  display:flex;align-items:center;gap:6px;font-size:.62rem;color:var(--muted);
+}
+.util-grad{
+  width:80px;height:5px;border-radius:99px;
+  background:linear-gradient(90deg,#1e293b 0%,#854d0e 40%,#c2410c 70%,#dc2626 100%);
+}
+#topo-svg{display:block;width:100%;height:auto}
+
+/* ── Controls Bar ────────────────────────────────────── */
+.controls-bar{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.ctrl-lbl{font-size:.7rem;color:var(--muted);font-weight:500;white-space:nowrap}
+select{
+  background:var(--card2);border:1px solid var(--border2);border-radius:var(--r-md);
+  padding:7px 28px 7px 11px;color:var(--text);font-family:var(--font);font-size:.82rem;font-weight:600;
+  appearance:none;cursor:pointer;flex:1;min-width:200px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:calc(100% - 9px) center;
+  transition:border-color .2s;
+}
+select:focus{outline:none;border-color:var(--purple);box-shadow:0 0 0 3px rgba(124,111,255,.2)}
+.spd-group{display:flex;align-items:center;gap:8px}
+input[type=range]{
+  -webkit-appearance:none;height:4px;background:rgba(255,255,255,.1);
+  border-radius:99px;outline:none;cursor:pointer;vertical-align:middle;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+  background:var(--purple);box-shadow:0 0 7px rgba(124,111,255,.7);
+  cursor:pointer;transition:transform .15s;
+}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.25)}
+#speed{width:90px}
+.btn{
+  padding:7px 16px;border-radius:var(--r-md);font-family:var(--font);font-size:.8rem;
+  font-weight:600;border:none;cursor:pointer;transition:all .18s;
+  display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+}
+.btn-pri{background:linear-gradient(135deg,var(--purple),#06b6d4);color:#fff;box-shadow:0 0 14px rgba(124,111,255,.35)}
+.btn-pri:hover{transform:translateY(-1px);box-shadow:0 0 22px rgba(124,111,255,.55)}
+.btn-sec{background:var(--card2);border:1px solid var(--border2);color:var(--text)}
+.btn-sec:hover{background:var(--card3)}
+.btn-sec.on{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.4);color:#34d399}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted)}
+.btn-ghost:hover{background:rgba(255,255,255,.04);color:var(--text)}
+.btn-amber{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:#fbbf24}
+.btn-amber:hover{background:rgba(245,158,11,.2)}
+.btn-red{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#f87171}
+.btn-red:hover{background:rgba(239,68,68,.2)}
+.btn-sm{padding:5px 11px;font-size:.72rem}
+.sep{width:1px;height:24px;background:var(--border);flex-shrink:0;margin:0 2px}
+
+/* ── Advanced Panel ──────────────────────────────────── */
+.adv-panel{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;
+}
+.adv-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:14px;display:flex;flex-direction:column;gap:10px;
+}
+.adv-title{
+  font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted);display:flex;align-items:center;gap:6px;
+  border-bottom:1px solid var(--border);padding-bottom:8px;
+}
+.adv-title svg{flex-shrink:0}
+
+/* Sliders */
+.slider-row{display:flex;align-items:center;gap:8px}
+.slider-row input[type=range]{flex:1}
+.slider-val{font-family:var(--mono);font-size:.72rem;color:var(--text);min-width:32px;text-align:right}
+.slider-lbl{font-size:.72rem;color:var(--muted);min-width:44px}
+.slider-accent{--thumb-color:var(--purple)}
+.slider-track{
+  position:relative;height:4px;background:rgba(255,255,255,.08);
+  border-radius:99px;overflow:visible;
+}
+.n-note{font-size:.65rem;color:var(--dim);margin-top:2px;line-height:1.4}
+
+/* Link toggles */
+.link-toggle{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 10px;border-radius:var(--r-sm);
+  background:var(--card2);border:1px solid var(--border);
+  transition:border-color .2s;
+}
+.link-toggle.failed{border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.05)}
+.lt-name{font-family:var(--mono);font-size:.75rem;font-weight:600}
+.lt-status{font-size:.65rem;font-weight:600;padding:2px 7px;border-radius:99px}
+.lt-status.ok {background:rgba(16,185,129,.12);color:#34d399;border:1px solid rgba(16,185,129,.3)}
+.lt-status.err{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+.lt-btn{padding:3px 9px;font-size:.65rem;font-weight:600;border-radius:5px;border:none;cursor:pointer;font-family:var(--font);transition:all .15s}
+.lt-btn.active{background:rgba(239,68,68,.2);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+.lt-btn.inactive{background:rgba(16,185,129,.15);color:#34d399;border:1px solid rgba(16,185,129,.3)}
+
+/* Spike buttons */
+.spike-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.spike-btn{
+  padding:8px 6px;border-radius:var(--r-md);border:1px solid;cursor:pointer;
+  font-family:var(--font);font-size:.72rem;font-weight:600;text-align:center;
+  transition:all .2s;
+}
+.sp2{background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.3);color:#a78bfa}
+.sp2:hover{background:rgba(167,139,250,.22)}
+.sp3{background:rgba(52,211,153,.10);border-color:rgba(52,211,153,.3);color:#34d399}
+.sp3:hover{background:rgba(52,211,153,.20)}
+.sp4{background:rgba(251,191,36,.10);border-color:rgba(251,191,36,.3);color:#fbbf24}
+.sp4:hover{background:rgba(251,191,36,.20)}
+.decay-row{display:flex;align-items:center;gap:8px;margin-top:4px}
+.decay-row input{width:90px}
+
+/* Branch distribution */
+.branch-row{display:flex;flex-direction:column;gap:8px}
+.br-item{display:flex;flex-direction:column;gap:3px}
+.br-header{display:flex;align-items:center;justify-content:space-between}
+.br-label{font-size:.72rem;font-weight:600;display:flex;align-items:center;gap:6px}
+.br-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.br-pct{font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+.br-track{height:5px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden}
+.br-fill{height:100%;border-radius:99px;transition:width .5s ease;width:0%}
+.br-util-label{font-size:.62rem;color:var(--dim);margin-top:1px}
+
+/* Stats Row */
+.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.sc{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:14px 16px;position:relative;overflow:hidden;transition:transform .18s,border-color .18s;
+}
+.sc::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.025) 0%,transparent 55%);pointer-events:none}
+.sc:hover{transform:translateY(-2px);border-color:rgba(124,111,255,.2)}
+.sc-val{font-family:var(--mono);font-size:1.45rem;font-weight:700;letter-spacing:-.02em;color:var(--text)}
+.sc-lbl{font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:4px}
+.sc-good .sc-val{color:#34d399}
+.sc-bad  .sc-val{color:#f87171}
+.sc-path .sc-val{font-size:.72rem;color:#a78bfa;line-height:1.55;word-break:break-all;font-family:var(--mono)}
+@keyframes numFlash{0%{color:#38bdf8}100%{color:inherit}}
+.flash{animation:numFlash .45s ease-out}
+
+/* Event Log */
+.log-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;
+  display:flex;flex-direction:column;gap:8px;max-height:230px;
+}
+.log-hdr{display:flex;align-items:center;justify-content:space-between}
+.log-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.log-clear{background:none;border:none;color:var(--dim);font-size:.68rem;font-family:var(--font);cursor:pointer;transition:color .2s}
+.log-clear:hover{color:var(--muted)}
+.log-body{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:1px}
+.log-body::-webkit-scrollbar{width:3px}
+.log-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
+.log-entry{display:flex;gap:8px;align-items:baseline;padding:2px 4px;border-radius:4px;animation:logIn .2s ease-out}
+.log-entry:hover{background:var(--card2)}
+@keyframes logIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.log-ts{font-family:var(--mono);font-size:.62rem;color:var(--dim);flex-shrink:0}
+.log-tag{font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:3px;flex-shrink:0;text-transform:uppercase}
+.t-route{background:rgba(52,211,153,.12);color:#34d399}
+.t-info {background:rgba(124,111,255,.12);color:#a78bfa}
+.t-warn {background:rgba(245,158,11,.12);color:#fbbf24}
+.t-err  {background:rgba(239,68,68,.12);color:#f87171}
+.log-msg{font-size:.68rem;color:var(--muted);flex:1}
+
+@media(max-width:900px){
+  .adv-panel{grid-template-columns:1fr 1fr}
+  .stats-grid{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:600px){
+  .adv-panel{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Header ───────────────────────────────────────── -->
+<div class="fw z1 topbar">
+  <div class="logo">
+    <svg class="logo-icon" viewBox="0 0 36 36" fill="none">
+      <circle cx="18" cy="18" r="17" stroke="url(#lgg)" stroke-width="2"/>
+      <circle cx="18" cy="9" r="3" fill="url(#lgg2)"/>
+      <circle cx="9" cy="25" r="3" fill="url(#lgg2)"/>
+      <circle cx="27" cy="25" r="3" fill="url(#lgg2)"/>
+      <line x1="18" y1="12" x2="9"  y2="22" stroke="#7c6fff" stroke-width="1.5"/>
+      <line x1="18" y1="12" x2="27" y2="22" stroke="#7c6fff" stroke-width="1.5"/>
+      <line x1="9"  y1="25" x2="27" y2="25" stroke="#7c6fff" stroke-width="1.5" stroke-dasharray="3 2"/>
+      <defs>
+        <linearGradient id="lgg" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#7c6fff"/><stop offset="1" stop-color="#06b6d4"/>
+        </linearGradient>
+        <linearGradient id="lgg2" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#a78bfa"/><stop offset="1" stop-color="#38bdf8"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <div>
+      <div class="logo-title">SDN Load Balancer — Control Panel</div>
+      <div class="logo-sub">10 HOSTS · 20 SWITCHES · 5-LAYER FAT-TREE · REAL-TIME DIJKSTRA</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="chip chip-algo mono" id="algo-chip">Weighted Dijkstra</div>
+    <div class="chip chip-demo"><div class="pulse"></div>Live Simulation</div>
+  </div>
+</div>
+
+<!-- ── Topology ─────────────────────────────────────── -->
+<div class="fw z1 viz-card">
+  <div class="viz-menu">···</div>
+  <div class="util-scale">
+    <span>Link Util:</span><div class="util-grad"></div>
+    <span style="color:#1e293b90">Low</span><span style="color:#dc2626">High</span>
+  </div>
+  <svg id="topo-svg" viewBox="0 0 1090 560" xmlns="http://www.w3.org/2000/svg"></svg>
+</div>
+
+<!-- ── Main Controls ─────────────────────────────────── -->
+<div class="fw z1 controls-bar">
+  <span class="ctrl-lbl">Algorithm:</span>
+  <select id="algo-sel">
+    <option value="weighted">Weighted Dijkstra — BW(40%) + Latency(35%) + Loss(25%) + Util</option>
+    <option value="minlatency">Minimum Latency — Dijkstra on latency only</option>
+    <option value="roundrobin">Round Robin — Cycle S2 → S3 → S4 branch</option>
+    <option value="leastconn">Least Connections — Fewest in-flight packets per branch</option>
+  </select>
+  <div class="sep"></div>
+  <div class="spd-group">
+    <span class="ctrl-lbl">Anim Speed:</span>
+    <input type="range" id="speed" min="0.5" max="6" step="0.5" value="2.5">
+  </div>
+  <div class="spd-group">
+    <span class="ctrl-lbl">Auto Rate:</span>
+    <input type="range" id="auto-rate" min="300" max="2000" step="100" value="700" style="width:80px">
+    <span class="ctrl-lbl mono" id="rate-lbl">700ms</span>
+  </div>
+  <div class="sep"></div>
+  <button class="btn btn-pri" id="btn-send">Send Packet ↗</button>
+  <button class="btn btn-sec" id="btn-burst">Burst ×10</button>
+  <button class="btn btn-sec" id="btn-auto">▶ Auto</button>
+  <button class="btn btn-ghost" id="btn-reset">Reset</button>
+</div>
+
+<!-- ── Advanced Panel ────────────────────────────────── -->
+<div class="fw z1 adv-panel">
+
+  <!-- SECTION 1: Routing Weights -->
+  <div class="adv-card">
+    <div class="adv-title">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Routing Weights (Dijkstra Cost)
+    </div>
+
+    <div class="slider-row">
+      <span class="slider-lbl" style="color:#60a5fa">W_BW</span>
+      <input type="range" id="w-bw" min="0" max="1" step="0.05" value="0.40" style="width:auto;flex:1">
+      <span class="slider-val" id="v-bw">0.40</span>
+    </div>
+    <div class="slider-row">
+      <span class="slider-lbl" style="color:#34d399">W_LAT</span>
+      <input type="range" id="w-lat" min="0" max="1" step="0.05" value="0.35" style="width:auto;flex:1">
+      <span class="slider-val" id="v-lat">0.35</span>
+    </div>
+    <div class="slider-row">
+      <span class="slider-lbl" style="color:#f87171">W_LOSS</span>
+      <input type="range" id="w-loss" min="0" max="1" step="0.05" value="0.25" style="width:auto;flex:1">
+      <span class="slider-val" id="v-loss">0.25</span>
+    </div>
+    <div class="slider-row">
+      <span class="slider-lbl" style="color:#fbbf24">W_UTIL</span>
+      <input type="range" id="w-util" min="0" max="1" step="0.05" value="0.40" style="width:auto;flex:1">
+      <span class="slider-val" id="v-util">0.40</span>
+    </div>
+    <div class="n-note">↑ Raise W_UTIL to force path switching as links congest. Raise W_LAT to prefer low-latency routes.</div>
+
+    <div class="slider-row" style="margin-top:4px">
+      <span class="slider-lbl" style="color:#a78bfa">Util Inc</span>
+      <input type="range" id="util-inc" min="0.05" max="0.80" step="0.05" value="0.40" style="width:auto;flex:1">
+      <span class="slider-val" id="v-inc">0.40</span>
+    </div>
+    <div class="slider-row">
+      <span class="slider-lbl" style="color:#a78bfa">Decay /s</span>
+      <input type="range" id="decay-rate" min="0.005" max="0.10" step="0.005" value="0.01" style="width:auto;flex:1">
+      <span class="slider-val" id="v-decay">0.01</span>
+    </div>
+    <div class="n-note">Util Inc = how much each packet builds congestion. Decay /s = how fast it drains.</div>
+  </div>
+
+  <!-- SECTION 2: Link Management + Congestion -->
+  <div class="adv-card">
+    <div class="adv-title">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      Link Management
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px" id="link-toggles">
+      <!-- Populated by JS -->
+    </div>
+
+    <div class="adv-title" style="margin-top:4px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      Congestion Injection
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div class="spike-grid">
+        <button class="spike-btn sp2" onclick="spikeUtil('S2')">⚡ Spike S2<br><span style="font-weight:400;font-size:.65rem;opacity:.7">via S2 branch</span></button>
+        <button class="spike-btn sp3" onclick="spikeUtil('S3')">⚡ Spike S3<br><span style="font-weight:400;font-size:.65rem;opacity:.7">via S3 branch</span></button>
+        <button class="spike-btn sp4" onclick="spikeUtil('S4')">⚡ Spike S4<br><span style="font-weight:400;font-size:.65rem;opacity:.7">via S4 branch</span></button>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="width:100%" onclick="clearAllUtil()">🧹 Clear All Congestion</button>
+    </div>
+    <div class="n-note">Spike sets util=0.85 on a branch — Dijkstra will reroute around it. Observe path color switching.</div>
+  </div>
+
+  <!-- SECTION 3: Path Distribution + Branch Util -->
+  <div class="adv-card">
+    <div class="adv-title">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Path Distribution &amp; Utilization
+    </div>
+    <div class="branch-row">
+      <!-- S2 -->
+      <div class="br-item">
+        <div class="br-header">
+          <div class="br-label"><div class="br-dot" style="background:#a78bfa;box-shadow:0 0 6px #a78bfa80"></div>S2 Branch</div>
+          <div class="br-pct" id="pct-S2">0%</div>
+        </div>
+        <div class="br-track"><div class="br-fill" id="bar-S2" style="background:#a78bfa"></div></div>
+        <div class="br-util-label">Util: <span id="util-S2" class="mono">0.00</span></div>
+      </div>
+      <!-- S3 -->
+      <div class="br-item">
+        <div class="br-header">
+          <div class="br-label"><div class="br-dot" style="background:#34d399;box-shadow:0 0 6px #34d39980"></div>S3 Branch</div>
+          <div class="br-pct" id="pct-S3">0%</div>
+        </div>
+        <div class="br-track"><div class="br-fill" id="bar-S3" style="background:#34d399"></div></div>
+        <div class="br-util-label">Util: <span id="util-S3" class="mono">0.00</span></div>
+      </div>
+      <!-- S4 -->
+      <div class="br-item">
+        <div class="br-header">
+          <div class="br-label"><div class="br-dot" style="background:#fbbf24;box-shadow:0 0 6px #fbbf2480"></div>S4 Branch</div>
+          <div class="br-pct" id="pct-S4">0%</div>
+        </div>
+        <div class="br-track"><div class="br-fill" id="bar-S4" style="background:#fbbf24"></div></div>
+        <div class="br-util-label">Util: <span id="util-S4" class="mono">0.00</span></div>
+      </div>
+    </div>
+    <div class="n-note">Packet distribution across the 3 L1 switch branches. Util shows current congestion level on S1→branch edge.</div>
+
+    <!-- Algo compare table -->
+    <div class="adv-title" style="margin-top:4px">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+      Edge Properties (S1 outgoing)
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:.68rem;font-family:var(--mono)">
+      <thead><tr style="color:var(--muted)">
+        <td style="padding:3px 6px">Edge</td>
+        <td style="padding:3px 6px">BW</td>
+        <td style="padding:3px 6px">Lat</td>
+        <td style="padding:3px 6px">Loss</td>
+        <td style="padding:3px 6px">Util</td>
+      </tr></thead>
+      <tbody id="edge-table-body">
+        <tr id="etr-S1-S2"><td style="padding:3px 6px;color:#a78bfa">S1→S2</td><td style="padding:3px 6px">10G</td><td style="padding:3px 6px">1ms</td><td style="padding:3px 6px">0.1%</td><td style="padding:3px 6px" id="etd-S1-S2">0.00</td></tr>
+        <tr id="etr-S1-S3"><td style="padding:3px 6px;color:#34d399">S1→S3</td><td style="padding:3px 6px">10G</td><td style="padding:3px 6px">1ms</td><td style="padding:3px 6px">0.1%</td><td style="padding:3px 6px" id="etd-S1-S3">0.00</td></tr>
+        <tr id="etr-S1-S4"><td style="padding:3px 6px;color:#fbbf24">S1→S4</td><td style="padding:3px 6px">10G</td><td style="padding:3px 6px">1ms</td><td style="padding:3px 6px">0.1%</td><td style="padding:3px 6px" id="etd-S1-S4">0.00</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Stats Row ──────────────────────────────────────── -->
+<div class="fw z1 stats-grid">
+  <div class="sc"><div class="sc-val" id="s-sent">0</div><div class="sc-lbl">Packets Sent</div></div>
+  <div class="sc sc-good"><div class="sc-val" id="s-delivered">0</div><div class="sc-lbl">Delivered</div></div>
+  <div class="sc sc-bad"><div class="sc-val" id="s-dropped">0</div><div class="sc-lbl">Dropped</div></div>
+  <div class="sc"><div class="sc-val mono" id="s-hops">—</div><div class="sc-lbl">Last Hops</div></div>
+  <div class="sc sc-path"><div class="sc-val" id="s-path">—</div><div class="sc-lbl">Last Path</div></div>
+</div>
+
+<!-- ── Event Log ─────────────────────────────────────── -->
+<div class="fw z1 log-card">
+  <div class="log-hdr">
+    <div class="log-title">Controller Event Log</div>
+    <button class="log-clear" onclick="clearLog()">Clear</button>
+  </div>
+  <div class="log-body" id="log-body">
+    <div style="color:var(--dim);font-size:.72rem;padding:6px 4px">Waiting for events…</div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════════
+   GRAPH TOPOLOGY  (mirrors sdn_load_balancer.py exactly)
+═══════════════════════════════════════════════════════ */
+const NODES={
+  H1:{x:52,y:65,t:'host'},H2:{x:136,y:65,t:'host'},
+  H3:{x:52,y:145,t:'host'},H4:{x:136,y:145,t:'host'},
+  H5:{x:52,y:225,t:'host'},H6:{x:136,y:225,t:'host'},
+  H7:{x:52,y:305,t:'host'},H8:{x:136,y:305,t:'host'},
+  H9:{x:52,y:385,t:'host'},H10:{x:136,y:385,t:'host'},
+  SDN:{x:228,y:22,t:'ctrl'},
+  S1:{x:228,y:225,t:'main'},
+  S2:{x:318,y:105,t:'switch'},S3:{x:318,y:228,t:'switch'},S4:{x:318,y:375,t:'switch'},
+  S5:{x:408,y:108,t:'switch'},S6:{x:408,y:218,t:'switch'},
+  S7:{x:408,y:332,t:'switch'},S8:{x:408,y:448,t:'switch'},
+  S9:{x:498,y:130,t:'switch'},S10:{x:498,y:240,t:'switch'},
+  S11:{x:498,y:352,t:'switch'},S12:{x:498,y:452,t:'switch'},
+  S13:{x:588,y:130,t:'switch'},S14:{x:588,y:240,t:'switch'},
+  S15:{x:588,y:352,t:'switch'},S16:{x:588,y:452,t:'switch'},
+  S17:{x:678,y:194,t:'switch'},S18:{x:678,y:308,t:'switch'},S19:{x:678,y:418,t:'switch'},
+  S20:{x:768,y:308,t:'agg'},
+  DST:{x:878,y:308,t:'dest'},
+};
+
+// All forward (routing) edges matching Python link() calls
+const FWD_EDGES=[
+  ...Array.from({length:10},(_,i)=>({f:`H${i+1}`,t:'S1',bw:1000,lat:2,loss:0.005})),
+  {f:'S1',t:'S2',bw:10000,lat:1,loss:0.001},{f:'S1',t:'S3',bw:10000,lat:1,loss:0.001},{f:'S1',t:'S4',bw:10000,lat:1,loss:0.001},
+  {f:'S2',t:'S5',bw:500,lat:5,loss:0.020},{f:'S2',t:'S6',bw:800,lat:4,loss:0.010},
+  {f:'S3',t:'S5',bw:600,lat:6,loss:0.030},{f:'S3',t:'S6',bw:700,lat:4,loss:0.010},{f:'S3',t:'S7',bw:800,lat:3,loss:0.010},
+  {f:'S4',t:'S7',bw:600,lat:5,loss:0.020},{f:'S4',t:'S8',bw:900,lat:3,loss:0.005},
+  {f:'S5',t:'S9',bw:400,lat:8,loss:0.040},{f:'S5',t:'S10',bw:600,lat:6,loss:0.020},
+  {f:'S6',t:'S9',bw:700,lat:5,loss:0.020},{f:'S6',t:'S10',bw:800,lat:4,loss:0.010},{f:'S6',t:'S11',bw:700,lat:4,loss:0.015},
+  {f:'S7',t:'S10',bw:600,lat:5,loss:0.020},{f:'S7',t:'S11',bw:800,lat:4,loss:0.010},{f:'S7',t:'S12',bw:700,lat:5,loss:0.020},
+  {f:'S8',t:'S11',bw:600,lat:6,loss:0.020},{f:'S8',t:'S12',bw:900,lat:3,loss:0.005},
+  {f:'S9',t:'S13',bw:500,lat:7,loss:0.030},{f:'S9',t:'S14',bw:600,lat:6,loss:0.020},
+  {f:'S10',t:'S13',bw:700,lat:5,loss:0.020},{f:'S10',t:'S14',bw:800,lat:4,loss:0.010},{f:'S10',t:'S15',bw:700,lat:5,loss:0.020},
+  {f:'S11',t:'S14',bw:600,lat:5,loss:0.020},{f:'S11',t:'S15',bw:800,lat:4,loss:0.010},{f:'S11',t:'S16',bw:700,lat:5,loss:0.025},
+  {f:'S12',t:'S15',bw:600,lat:6,loss:0.020},{f:'S12',t:'S16',bw:900,lat:3,loss:0.005},
+  {f:'S13',t:'S17',bw:600,lat:5,loss:0.020},{f:'S13',t:'S18',bw:700,lat:4,loss:0.015},
+  {f:'S14',t:'S17',bw:800,lat:4,loss:0.010},{f:'S14',t:'S18',bw:800,lat:3,loss:0.010},{f:'S14',t:'S19',bw:700,lat:5,loss:0.020},
+  {f:'S15',t:'S17',bw:600,lat:5,loss:0.020},{f:'S15',t:'S18',bw:700,lat:4,loss:0.015},{f:'S15',t:'S19',bw:800,lat:3,loss:0.010},
+  {f:'S16',t:'S18',bw:600,lat:5,loss:0.020},{f:'S16',t:'S19',bw:900,lat:3,loss:0.005},
+  {f:'S17',t:'S20',bw:10000,lat:1,loss:0.001},{f:'S18',t:'S20',bw:10000,lat:1,loss:0.001},{f:'S19',t:'S20',bw:10000,lat:1,loss:0.001},
+  {f:'S20',t:'DST',bw:10000,lat:1,loss:0.0005},
+];
+
+// Links exposed for failure toggling
+const TOGGLE_LINKS=[
+  {f:'S1',t:'S2',label:'S1 → S2'},
+  {f:'S1',t:'S3',label:'S1 → S3'},
+  {f:'S1',t:'S4',label:'S1 → S4'},
+  {f:'S4',t:'S8',label:'S4 → S8'},
+  {f:'S8',t:'S12',label:'S8 → S12'},
+];
+
+/* ─ Data structures ─ */
+const EDGE_MAP={};  // "F-T" → {bw,lat,loss}
+const edgeUtil={};  // "F-T" → 0..1
+const ADJ={};       // mutable adjacency list
+const ORIG_ADJ={};  // immutable original
+
+for(const id of Object.keys(NODES)){ADJ[id]=[];ORIG_ADJ[id]=[];}
+for(const e of FWD_EDGES){
+  ADJ[e.f].push(e.t);
+  ORIG_ADJ[e.f]=[...ORIG_ADJ[e.f],e.t];
+  EDGE_MAP[`${e.f}-${e.t}`]={bw:e.bw,lat:e.lat,loss:e.loss};
+  edgeUtil[`${e.f}-${e.t}`]=0;
+}
+
+const failedLinks=new Set();
+
+/* ═══════════════════════════════════════════════════════
+   COST FUNCTIONS
+═══════════════════════════════════════════════════════ */
+const BW_MAX=10000,LAT_MAX=20,LOSS_MAX=0.05;
+
+function g(id){return +document.getElementById(id).value;}
+
+function costWeighted(u,v){
+  const e=EDGE_MAP[`${u}-${v}`]; if(!e)return Infinity;
+  if(failedLinks.has(`${u}-${v}`))return Infinity;
+  const util=edgeUtil[`${u}-${v}`]||0;
+  const nBw  =1-Math.min(e.bw,  BW_MAX)  /BW_MAX;
+  const nLat =  Math.min(e.lat, LAT_MAX) /LAT_MAX;
+  const nLoss=  Math.min(e.loss,LOSS_MAX)/LOSS_MAX;
+  return g('w-bw')*nBw + g('w-lat')*nLat + g('w-loss')*nLoss + g('w-util')*util;
+}
+function costLatency(u,v){
+  if(failedLinks.has(`${u}-${v}`))return Infinity;
+  const e=EDGE_MAP[`${u}-${v}`]; return e?e.lat/LAT_MAX:Infinity;
+}
+
+/* ═══════════════════════════════════════════════════════
+   MIN-HEAP + DIJKSTRA
+═══════════════════════════════════════════════════════ */
+class MinHeap{
+  constructor(){this.h=[];}
+  push(c,n){
+    this.h.push([c,n]);let i=this.h.length-1;
+    while(i>0){const p=(i-1)>>1;if(this.h[p][0]>this.h[i][0]){[this.h[p],this.h[i]]=[this.h[i],this.h[p]];i=p;}else break;}
+  }
+  pop(){
+    const top=this.h[0],last=this.h.pop();
+    if(this.h.length){
+      this.h[0]=last;let i=0;
+      while(true){let s=i;const l=2*i+1,r=2*i+2;
+        if(l<this.h.length&&this.h[l][0]<this.h[s][0])s=l;
+        if(r<this.h.length&&this.h[r][0]<this.h[s][0])s=r;
+        if(s!==i){[this.h[s],this.h[i]]=[this.h[i],this.h[s]];i=s;}else break;}
+    }return top;
+  }
+  get size(){return this.h.length;}
+}
+
+function dijkstra(src,dst,costFn){
+  const dist={},prev={},vis=new Set();
+  for(const n of Object.keys(NODES)){dist[n]=Infinity;prev[n]=null;}
+  dist[src]=0;const pq=new MinHeap();pq.push(0,src);
+  while(pq.size>0){
+    const[d,u]=pq.pop();
+    if(vis.has(u))continue;vis.add(u);if(u===dst)break;
+    for(const v of(ADJ[u]||[])){
+      if(vis.has(v))continue;
+      const c=costFn(u,v),nd=d+c;
+      if(nd<dist[v]){dist[v]=nd;prev[v]=u;pq.push(nd,v);}
+    }
+  }
+  if(!isFinite(dist[dst]))return[];
+  const path=[];let cur=dst;while(cur!==null){path.unshift(cur);cur=prev[cur];}
+  return path;
+}
+
+/* ═══════════════════════════════════════════════════════
+   UTILISATION  (fixes the stagnant-path issue)
+═══════════════════════════════════════════════════════ */
+function updateUtil(path){
+  const inc=g('util-inc');
+  for(let i=0;i<path.length-1;i++){
+    const k=`${path[i]}-${path[i+1]}`;
+    const e=EDGE_MAP[k]; if(!e)continue;
+    // Higher-capacity links build congestion slower
+    const delta=inc*(1000/e.bw);
+    edgeUtil[k]=Math.min(1,(edgeUtil[k]||0)+delta);
+  }
+}
+
+// Decay every second
+setInterval(()=>{
+  const d=g('decay-rate');
+  for(const k of Object.keys(edgeUtil))
+    edgeUtil[k]=Math.max(0,edgeUtil[k]-d);
+  updateBranchDisplay();
+},1000);
+
+/* ═══════════════════════════════════════════════════════
+   PATH SELECTION  (4 algorithms)
+═══════════════════════════════════════════════════════ */
+let rrIdx=0;
+const branchConn={S2:0,S3:0,S4:0};
+const branchStats={S2:0,S3:0,S4:0,total:0};
+const HOSTS=['H1','H2','H3','H4','H5','H6','H7','H8','H9','H10'];
+const BRANCH_COL={S2:'#a78bfa',S3:'#34d399',S4:'#fbbf24'};
+
+function getL1(path){return path.find(n=>['S2','S3','S4'].includes(n))||null;}
+function pathColor(path){const b=getL1(path);return b?BRANCH_COL[b]:'#60a5fa';}
+
+function selectPath(algo,src){
+  if(algo==='weighted')  return dijkstra(src,'DST',costWeighted);
+  if(algo==='minlatency')return dijkstra(src,'DST',costLatency);
+  if(algo==='roundrobin'){
+    const branches=['S2','S3','S4'].filter(b=>!failedLinks.has(`S1-${b}`));
+    if(!branches.length)return dijkstra(src,'DST',costWeighted);
+    const branch=branches[rrIdx++%branches.length];
+    const rest=dijkstra(branch,'DST',costWeighted);
+    return rest.length?[src,'S1',...rest]:[];
+  }
+  if(algo==='leastconn'){
+    const branches=['S2','S3','S4'].filter(b=>!failedLinks.has(`S1-${b}`));
+    if(!branches.length)return dijkstra(src,'DST',costWeighted);
+    const branch=branches.reduce((a,b)=>(branchConn[a]||0)<=(branchConn[b]||0)?a:b);
+    const rest=dijkstra(branch,'DST',costWeighted);
+    return rest.length?[src,'S1',...rest]:[];
+  }
+  return[];
+}
+
+/* ═══════════════════════════════════════════════════════
+   SVG RENDERING
+═══════════════════════════════════════════════════════ */
+const NS='http://www.w3.org/2000/svg';
+const svg=document.getElementById('topo-svg');
+const E=(t,a)=>{const e=document.createElementNS(NS,t);for(const[k,v]of Object.entries(a||{}))e.setAttribute(k,v);return e;};
+const T=(x,y,s,fill,sz,fw)=>{const t=E('text',{x,y,'text-anchor':'middle','dominant-baseline':'middle',fill,'font-size':sz||10,'font-weight':fw||'600','font-family':'Inter,sans-serif'});t.textContent=s;return t;};
+
+const defs=E('defs');svg.appendChild(defs);
+const eL=E('g'),nL=E('g'),pL=E('g');
+svg.append(eL,nL,pL);
+
+// Glow filters
+for(const[id,c]of[['gb','59,130,246'],['gg','52,211,153'],['ga','251,191,36'],['gp','124,111,255'],['gr','239,68,68']]){
+  const f=E('filter',{id,x:'-60%',y:'-60%',width:'220%',height:'220%'});
+  const b=E('feGaussianBlur',{in:'SourceGraphic',stdDeviation:'3.5',result:'bk'});
+  const m=E('feMerge');m.append(E('feMergeNode',{in:'bk'}),E('feMergeNode',{in:'SourceGraphic'}));
+  f.append(b,m);defs.appendChild(f);
+}
+
+const edgeElMap=new Map();  // "A-B" and "B-A" → same SVGLine
+const edgeRefCnt=new Map(); // "A-B" → {count,color}
+
+// Draw SDN→S1 dashed
+const sdn=NODES['SDN'],s1=NODES['S1'];
+const ctrlLine=E('line',{x1:sdn.x,y1:sdn.y,x2:s1.x,y2:s1.y,stroke:'#1a3328','stroke-width':'1.2','stroke-dasharray':'5 4'});
+eL.appendChild(ctrlLine);
+
+// Draw routing edges
+for(const e of FWD_EDGES){
+  const a=NODES[e.f],b=NODES[e.t];
+  const line=E('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:'#1e293b','stroke-width':'1.3','stroke-linecap':'round'});
+  eL.appendChild(line);
+  edgeElMap.set(`${e.f}-${e.t}`,line);
+  edgeElMap.set(`${e.t}-${e.f}`,line);
+}
+
+// Draw nodes
+for(const[id,n]of Object.entries(NODES)){
+  const g=E('g',{id:`ng-${id}`});
+  if(n.t==='host'){
+    g.append(E('rect',{x:n.x-20,y:n.y-12,width:40,height:24,rx:4,fill:'#1e1654',stroke:'#5b21b6','stroke-width':'1.5'}));
+    g.append(T(n.x,n.y+.5,id,'#c4b5fd',9.5));
+  }else if(n.t==='ctrl'){
+    g.append(E('rect',{x:n.x-33,y:n.y-13,width:66,height:26,rx:5,fill:'#052e1e',stroke:'#047857','stroke-width':'1.5',filter:'url(#gg)'}));
+    g.append(T(n.x,n.y+.5,'SDN Ctrl','#6ee7b7',9.5,'700'));
+  }else if(n.t==='main'){
+    g.append(E('circle',{cx:n.x,cy:n.y,r:'26',fill:'#172554',stroke:'#3b82f6','stroke-width':'2.5',filter:'url(#gb)'}));
+    g.append(T(n.x,n.y+.5,'S1','#93c5fd',14,'700'));
+  }else if(n.t==='agg'){
+    g.append(E('circle',{cx:n.x,cy:n.y,r:'20',fill:'#431407',stroke:'#d97706','stroke-width':'2',filter:'url(#ga)'}));
+    g.append(T(n.x,n.y+.5,'S20','#fcd34d',10,'700'));
+  }else if(n.t==='dest'){
+    g.append(E('circle',{cx:n.x,cy:n.y,r:'24',fill:'#052e16',stroke:'#16a34a','stroke-width':'2.5',filter:'url(#gg)'}));
+    g.append(T(n.x,n.y,'DST','#86efac',10.5,'700'));
+    const sub=E('text',{x:n.x,y:n.y+37,'text-anchor':'middle',fill:'#374151','font-size':'8','font-family':'Inter'});sub.textContent='DESTINATION';g.append(sub);
+  }else{
+    g.append(E('circle',{cx:n.x,cy:n.y,r:'14',fill:'#450a0a',stroke:'#dc2626','stroke-width':'1.5'}));
+    g.append(T(n.x,n.y+.5,id,'#fca5a5',8.5,'700'));
+  }
+  nL.appendChild(g);
+}
+
+/* ─ Edge activation ─ */
+function activateEdge(u,v,color){
+  const key=`${u}-${v}`,el=edgeElMap.get(key);if(!el)return;
+  const ref=edgeRefCnt.get(key)||{count:0};
+  edgeRefCnt.set(key,{count:ref.count+1,color});
+  el.setAttribute('stroke',color);
+  el.setAttribute('stroke-width','2.8');
+  el.style.filter=`drop-shadow(0 0 5px ${color}b0)`;
+}
+function deactivateEdge(u,v){
+  const key=`${u}-${v}`,el=edgeElMap.get(key);if(!el)return;
+  const ref=edgeRefCnt.get(key);if(!ref)return;
+  ref.count--;
+  if(ref.count<=0){
+    edgeRefCnt.delete(key);
+    // Will be styled by updateEdgeColors next frame
+  }
+}
+
+/* ─ Utilization-based edge coloring ─ */
+function utilColor(u){
+  if(u<0.15)return null; // use default
+  if(u<0.35)return['#854d0e','1.6'];
+  if(u<0.60)return['#c2410c','2.0'];
+  return['#dc2626','2.4'];
+}
+function updateEdgeColors(){
+  for(const e of FWD_EDGES){
+    const key=`${e.f}-${e.t}`;
+    const el=edgeElMap.get(key);if(!el)continue;
+    if(edgeRefCnt.has(key))continue; // packet in flight — don't override
+    if(failedLinks.has(key))continue; // failed — handled by toggleLink
+
+    const u=edgeUtil[key]||0;
+    const uc=utilColor(u);
+    if(uc){
+      el.setAttribute('stroke',uc[0]);
+      el.setAttribute('stroke-width',uc[1]);
+      el.style.filter='';
+    }else{
+      el.setAttribute('stroke','#1e293b');
+      el.setAttribute('stroke-width','1.3');
+      el.style.filter='';
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   LINK FAILURE MANAGEMENT
+═══════════════════════════════════════════════════════ */
+function buildLinkToggles(){
+  const container=document.getElementById('link-toggles');
+  for(const lk of TOGGLE_LINKS){
+    const key=`${lk.f}-${lk.t}`;
+    const div=document.createElement('div');
+    div.className='link-toggle';div.id=`lt-${key}`;
+    div.innerHTML=`
+      <span class="lt-name mono">${lk.label}</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="lt-status ok" id="ls-${key}">● Active</span>
+        <button class="lt-btn active" id="lb-${key}" onclick="toggleLink('${lk.f}','${lk.t}')">Fail</button>
+      </div>`;
+    container.appendChild(div);
+  }
+}
+buildLinkToggles();
+
+function toggleLink(u,v){
+  const key=`${u}-${v}`;
+  const el=edgeElMap.get(key);
+  const div=document.getElementById(`lt-${key}`);
+  const statusEl=document.getElementById(`ls-${key}`);
+  const btnEl=document.getElementById(`lb-${key}`);
+
+  if(failedLinks.has(key)){
+    // Restore
+    failedLinks.delete(key);
+    if(!ADJ[u].includes(v))ADJ[u].push(v);
+    if(el){el.setAttribute('stroke','#1e293b');el.setAttribute('stroke-dasharray','none');
+      el.setAttribute('stroke-width','1.3');el.style.filter='';el.style.opacity='1';}
+    if(div)div.classList.remove('failed');
+    if(statusEl){statusEl.textContent='● Active';statusEl.className='lt-status ok';}
+    if(btnEl){btnEl.textContent='Fail';btnEl.className='lt-btn active';}
+    addLog('info',`Link ${u}→${v} RESTORED — routes via this link resumed`);
+  }else{
+    // Fail
+    failedLinks.add(key);
+    ADJ[u]=ADJ[u].filter(n=>n!==v);
+    if(el){el.setAttribute('stroke','#7f1d1d');el.setAttribute('stroke-dasharray','5 3');
+      el.setAttribute('stroke-width','2');el.style.filter='drop-shadow(0 0 4px #ef444480)';el.style.opacity='0.55';}
+    if(div)div.classList.add('failed');
+    if(statusEl){statusEl.textContent='✕ FAILED';statusEl.className='lt-status err';}
+    if(btnEl){btnEl.textContent='Restore';btnEl.className='lt-btn inactive';}
+    addLog('warn',`Link ${u}→${v} FAILED — Dijkstra will reroute around it`);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   CONGESTION INJECTION
+═══════════════════════════════════════════════════════ */
+function spikeUtil(branch){
+  // Spike S1→branch
+  edgeUtil[`S1-${branch}`]=0.85;
+  // Spike all edges from branch
+  for(const nb of ORIG_ADJ[branch]||[]){
+    edgeUtil[`${branch}-${nb}`]=Math.max(edgeUtil[`${branch}-${nb}`]||0,0.85);
+    // One level deeper (50%)
+    for(const nb2 of ORIG_ADJ[nb]||[])
+      edgeUtil[`${nb}-${nb2}`]=Math.max(edgeUtil[`${nb}-${nb2}`]||0,0.55);
+  }
+  addLog('warn',`Congestion spike on ${branch} branch (util=0.85) — Dijkstra will reroute`);
+  updateBranchDisplay();
+}
+
+function clearAllUtil(){
+  for(const k of Object.keys(edgeUtil))edgeUtil[k]=0;
+  addLog('info','All utilization cleared — paths will default to optimal static cost');
+  updateBranchDisplay();
+}
+window.spikeUtil=spikeUtil;
+window.clearAllUtil=clearAllUtil;
+
+/* ═══════════════════════════════════════════════════════
+   PACKET ANIMATION
+═══════════════════════════════════════════════════════ */
+let livePackets=[];
+
+function pDist(a,b){const dx=b.x-a.x,dy=b.y-a.y;return Math.sqrt(dx*dx+dy*dy);}
+function tLen(pts){let l=0;for(let i=1;i<pts.length;i++)l+=pDist(pts[i-1],pts[i]);return l;}
+function posAt(pts,t){
+  const tgt=tLen(pts)*Math.min(Math.max(t,0),1);let tr=0;
+  for(let i=1;i<pts.length;i++){
+    const s=pDist(pts[i-1],pts[i]);
+    if(tr+s>=tgt||i===pts.length-1){const f=s>0?(tgt-tr)/s:0;return{x:pts[i-1].x+(pts[i].x-pts[i-1].x)*f,y:pts[i-1].y+(pts[i].y-pts[i-1].y)*f};}
+    tr+=s;
+  }return pts[pts.length-1];
+}
+
+class Packet{
+  constructor(path,color){
+    this.path=path;this.color=color;
+    this.pts=path.map(id=>NODES[id]);
+    this.t=0;this.done=false;
+    this.dropped=path.slice(0,-1).some((n,i)=>{
+      const e=EDGE_MAP[`${n}-${path[i+1]}`];return e&&Math.random()<e.loss;});
+    this.dropT=this.dropped?0.45+Math.random()*0.15:Infinity;
+
+    this.dot=E('circle',{r:'5',fill:color,opacity:'1',style:`filter:drop-shadow(0 0 7px ${color})`});
+    this.trail=E('circle',{r:'3',fill:color,opacity:'0.28'});
+    pL.append(this.trail,this.dot);
+
+    for(let i=0;i<path.length-1;i++)activateEdge(path[i],path[i+1],color);
+
+    this._branch=getL1(path);
+    if(this._branch)branchConn[this._branch]=(branchConn[this._branch]||0)+1;
+  }
+  update(dt,speed){
+    this.t+=dt*speed/2400;
+    const endT=this.dropped?this.dropT+0.09:1;
+    if(this.t>=endT){this.finish();return;}
+    const pos=posAt(this.pts,this.t),tr=posAt(this.pts,Math.max(0,this.t-0.025));
+    this.dot.setAttribute('cx',pos.x);this.dot.setAttribute('cy',pos.y);
+    this.trail.setAttribute('cx',tr.x);this.trail.setAttribute('cy',tr.y);
+    if(this.dropped&&this.t>this.dropT){
+      const f=Math.max(0,1-(this.t-this.dropT)/0.09);
+      this.dot.setAttribute('opacity',f);this.trail.setAttribute('opacity',f*0.28);
+      this.dot.setAttribute('fill','#f87171');this.dot.style.filter='drop-shadow(0 0 8px #ef4444)';
+    }
+  }
+  finish(){
+    this.done=true;
+    this.dot.remove();this.trail.remove();
+    for(let i=0;i<this.path.length-1;i++)deactivateEdge(this.path[i],this.path[i+1]);
+    if(this._branch)branchConn[this._branch]=Math.max(0,(branchConn[this._branch]||1)-1);
+    if(this.dropped)packetsDropped++;else packetsDelivered++;
+    updateStats();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   STATS & UI UPDATES
+═══════════════════════════════════════════════════════ */
+let packetsSent=0,packetsDelivered=0,packetsDropped=0;
+
+function flash(id){const el=document.getElementById(id);if(!el)return;el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash');}
+
+function updateStats(path){
+  document.getElementById('s-sent').textContent=packetsSent;
+  document.getElementById('s-delivered').textContent=packetsDelivered;
+  document.getElementById('s-dropped').textContent=packetsDropped;
+  if(path){
+    document.getElementById('s-hops').textContent=(path.length-1)+' hops';
+    document.getElementById('s-path').textContent=path.join('→');
+  }
+  flash('s-sent');
+}
+
+function updateBranchDisplay(){
+  const total=branchStats.total||1;
+  for(const b of['S2','S3','S4']){
+    const pct=(branchStats[b]/total*100).toFixed(1);
+    document.getElementById(`pct-${b}`).textContent=pct+'%';
+    document.getElementById(`bar-${b}`).style.width=pct+'%';
+    const u=edgeUtil[`S1-${b}`]||0;
+    document.getElementById(`util-${b}`).textContent=u.toFixed(2);
+  }
+  // Update edge table
+  for(const b of['S2','S3','S4']){
+    const td=document.getElementById(`etd-S1-${b}`);
+    if(!td)continue;
+    const u=edgeUtil[`S1-${b}`]||0;
+    td.textContent=u.toFixed(2);
+    td.style.color=u>0.6?'#f87171':u>0.3?'#fbbf24':'#6ee7b7';
+  }
+}
+
+setInterval(updateBranchDisplay,500);
+
+/* Weight slider labels */
+for(const id of['w-bw','w-lat','w-loss','w-util','util-inc','decay-rate']){
+  const el=document.getElementById(id);
+  const map={'w-bw':'v-bw','w-lat':'v-lat','w-loss':'v-loss','w-util':'v-util','util-inc':'v-inc','decay-rate':'v-decay'};
+  el.addEventListener('input',()=>document.getElementById(map[id]).textContent=parseFloat(el.value).toFixed(2));
+}
+
+document.getElementById('auto-rate').addEventListener('input',function(){
+  document.getElementById('rate-lbl').textContent=this.value+'ms';
+  if(autoTmr){clearInterval(autoTmr);autoTmr=setInterval(sendPacket,+this.value);}
+});
+document.getElementById('algo-sel').addEventListener('change',function(){
+  const labels={weighted:'Weighted Dijkstra',minlatency:'Min Latency',roundrobin:'Round Robin',leastconn:'Least Connections'};
+  document.getElementById('algo-chip').textContent=labels[this.value]||this.value;
+});
+
+/* ═══════════════════════════════════════════════════════
+   EVENT LOG
+═══════════════════════════════════════════════════════ */
+function ts(){const d=new Date();return[d.getHours(),d.getMinutes(),d.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');}
+let logCount=0;
+
+function addLog(type,msg){
+  const body=document.getElementById('log-body');
+  if(logCount===0)body.innerHTML='';
+  const div=document.createElement('div');div.className='log-entry';
+  div.innerHTML=`<span class="log-ts">${ts()}</span><span class="log-tag t-${type}">${type}</span><span class="log-msg">${msg}</span>`;
+  body.prepend(div);
+  logCount++;
+  const entries=body.querySelectorAll('.log-entry');
+  if(entries.length>60)entries[entries.length-1].remove();
+}
+window.clearLog=()=>{document.getElementById('log-body').innerHTML='';logCount=0;};
+
+/* ═══════════════════════════════════════════════════════
+   SEND PACKET
+═══════════════════════════════════════════════════════ */
+function sendPacket(){
+  const algo=document.getElementById('algo-sel').value;
+  const src=HOSTS[Math.floor(Math.random()*10)];
+  const path=selectPath(algo,src);
+
+  if(!path.length){
+    addLog('err',`No path from ${src} to DST — all routes may be failed or congested`);
+    packetsDropped++;updateStats();return;
+  }
+
+  const color=pathColor(path);
+  const branch=getL1(path);
+  livePackets.push(new Packet(path,color));
+  packetsSent++;
+  updateUtil(path);
+
+  if(branch){
+    branchStats[branch]++;branchStats.total++;
+  }
+
+  const hops=path.length-1;
+  const pathStr=path.join('→');
+  const dropped=livePackets[livePackets.length-1].dropped;
+  addLog(dropped?'err':'route',`${src}→DST via ${branch||'?'} | ${hops} hops | ${pathStr}`);
+  updateStats(path);
+}
+
+/* ═══════════════════════════════════════════════════════
+   ANIMATION LOOP
+═══════════════════════════════════════════════════════ */
+let prevTs=null;
+function loop(ts){
+  if(!prevTs)prevTs=ts;
+  const dt=ts-prevTs;prevTs=ts;
+  const spd=g('speed');
+  livePackets=livePackets.filter(p=>{if(!p.done)p.update(dt,spd);return!p.done;});
+  updateEdgeColors();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ═══════════════════════════════════════════════════════
+   CONTROLS
+═══════════════════════════════════════════════════════ */
+let autoTmr=null;
+
+document.getElementById('btn-send').addEventListener('click',sendPacket);
+
+document.getElementById('btn-burst').addEventListener('click',()=>{
+  for(let i=0;i<10;i++)setTimeout(sendPacket,i*80);
+  addLog('info','Burst: 10 packets sent — watch congestion build on preferred path');
+});
+
+document.getElementById('btn-auto').addEventListener('click',function(){
+  if(autoTmr){clearInterval(autoTmr);autoTmr=null;this.innerHTML='▶ Auto';this.classList.remove('on');}
+  else{
+    sendPacket();
+    autoTmr=setInterval(sendPacket,g('auto-rate'));
+    this.innerHTML='⏸ Stop';this.classList.add('on');
+  }
+});
+
+document.getElementById('btn-reset').addEventListener('click',()=>{
+  if(autoTmr){clearInterval(autoTmr);autoTmr=null;
+    const b=document.getElementById('btn-auto');b.innerHTML='▶ Auto';b.classList.remove('on');}
+  livePackets.forEach(p=>{p.done=true;p.dot?.remove();p.trail?.remove();
+    for(let i=0;i<p.path.length-1;i++)deactivateEdge(p.path[i],p.path[i+1]);});
+  livePackets=[];
+  for(const k of Object.keys(edgeUtil))edgeUtil[k]=0;
+  for(const b of Object.keys(branchConn))branchConn[b]=0;
+  for(const b of Object.keys(branchStats))branchStats[b]=0;
+  rrIdx=0;packetsSent=packetsDelivered=packetsDropped=0;
+  document.getElementById('s-path').textContent='—';
+  document.getElementById('s-hops').textContent='—';
+  updateStats();updateBranchDisplay();
+  addLog('info','Simulation reset — all stats, utilization, and paths cleared');
+});
+
+// Init
+addLog('info','Simulator ready — 10 hosts, 20 switches, 5-layer topology');
+addLog('info','Tip: Click "Spike S4" to congest the default best-path branch and watch Dijkstra reroute!');
+addLog('route','Algorithm: Weighted Dijkstra | W_BW=0.40 W_LAT=0.35 W_LOSS=0.25 W_UTIL=0.40');
+</script>
+</body>
+</html>
